@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
-import 'package:bookmark/pages/reading_page.dart';
-import 'package:bookmark/pages/search_page.dart';
-import 'package:bookmark/pages/library_page.dart';
+import 'package:bookmark/pages/reading/reading_page.dart';
+import 'package:bookmark/pages/search/search_page.dart';
+import 'package:bookmark/pages/library/library_page.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
