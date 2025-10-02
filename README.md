@@ -1,16 +1,65 @@
 # bookmark
+# 📚 독서 기록 · 서재 관리 애플리케이션
 
-A new Flutter project.
+Flutter 기반으로 개발하는 독서 기록 & 서재 관리 앱입니다.  
+사용자가 원하는 책을 선택해 독서 시간을 측정하고, 진행률과 메모를 관리할 수 있습니다.  
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚀 주요 기능
+1. **독서 타이머**  
+   - 원하는 책을 타이머 개념으로 선택 → 독서 시간 측정/기록
+   - 독서 중 간단한 메모 작성 가능
+2. **독서 진행률 관리**  
+   - 챕터별 진행률 표시
+   - 이어읽기 화면에서 최근 읽은 책 바로 열기
+3. **서재 관리**  
+   - 책 검색 → 내 서재에 담기
+   - 서재 화면에서 담은 책 목록 확인
+4. **추후 예정**  
+   - 로그인/회원 기능
+   - 사용자별 독서 기록 동기화
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🛠️ 기술 스택
+- Flutter 3.x / Dart / Firebase 
+- MVVM + Clean Architecture
+- State 관리: ChangeNotifier (→ 추후 Riverpod 전환 고려)
+- Assets:
+  - Fonts: NotoSans 
+
+---
+
+## 🌳 브랜치 전략
+
+main : 항상 배포 가능한 안정 상태
+
+feature/ : 기능 단위 개발
+
+fix/ : 버그 수정
+
+chore/ : 환경 설정, 빌드 관련
+
+
+---
+
+##📝 커밋 컨벤션
+
+type
+
+feat : 새로운 기능
+
+fix : 버그 수정
+
+style : 코드 스타일, 포맷팅
+
+refactor : 리팩토링 (동작 동일, 구조 개선)
+
+docs : 문서 수정
+
+chore : 환경 설정, 빌드 관련
+
+test : 테스트 코드 관련
+
