@@ -10,7 +10,7 @@ class SearchSkeletonList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12),
       itemCount: 8,
       separatorBuilder: (_, __) => const Divider(
-        color: Color(0xFF232428), // 미묘한 구분선
+        color: Color(0xFF232428),
         height: 1,
       ),
       itemBuilder: (_, __) => const _SkeletonItem(),
