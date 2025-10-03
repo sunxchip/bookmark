@@ -28,35 +28,13 @@
 - `.gitignore` 정리(빌드/Pods/keystore/env 등 제외)
 - 브랜치 전략: `main` / `dev` / `feature/*`
 
----
-## 📁 폴더 구조
-lib/
-├─ common/
-│  └─ widgets/top_toast.dart                  # 상단 토스트 + 배경 디밍
-├─ features/
-│  ├─ search/
-│  │  ├─ application/search_view_model.dart
-│  │  ├─ data/aladin_api_service.dart
-│  │  └─ data/search_repository_impl.dart
-│  └─ library/
-│     ├─ application/library_view_model.dart
-│     ├─ domain/{library_item.dart, library_repository.dart}
-│     └─ data/in_memory_library_repository.dart   # 임시 저장소
-├─ pages/
-│  ├─ search/
-│  │  ├─ search_page.dart
-│  │  └─ widgets/{search_results_list.dart, add_to_library_sheet.dart}
-│  └─ library/
-│     ├─ library_page.dart
-│     └─ widgets/{library_grid.dart, library_empty_view.dart}
-└─ nav/
-   ├─ app_theme.dart
-   └─ home_shell.dart
 
 ---
 
 ## 🧷 DI (전역 Provider) 예시
 
+```dart
+// Dart/Flutter
 return MultiProvider(
   providers: [
     // Library
@@ -70,7 +48,7 @@ return MultiProvider(
   ],
   child: MaterialApp(theme: AppTheme.dark, home: const HomeShell()),
 );
-
+```
 
 영속 저장소(Hive/Isar/SQLite 등)로 바꿀 때는 LibraryRepositoryImpl(dep) DI만 교체
 
