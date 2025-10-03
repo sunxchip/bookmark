@@ -33,6 +33,8 @@ migrate_working_dir/
 .pub/
 /build/
 
+
+
 # Symbolication related
 app.*.symbols
 
@@ -43,3 +45,38 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# --- Android (local & signing) ---
+android/.gradle/
+android/local.properties
+android/key.properties
+**/*.keystore
+**/*.jks
+
+# --- iOS / macOS (Pods & Xcode user data) ---
+ios/Pods/
+ios/.symlinks/
+macos/Pods/
+macos/.symlinks/
+**/xcuserdata/
+**/*.xcuserstate
+# Flutter iOS artifacts (보통 커밋 불필요)
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+macos/Flutter/ephemeral/
+
+# --- Secrets / env / certificates ---
+.env
+.env.*
+secrets.*
+*.credentials.json
+*.pem
+*.p12
+*.mobileprovision
+# (선택) Firebase 파일을 레포에 올리지 않을 경우만 활성화
+# android/app/google-services.json
+# ios/Runner/GoogleService-Info.plist
+
+# --- Flutter/coverage/others ---
+.flutter-plugins*
+coverage/
