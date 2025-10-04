@@ -4,15 +4,15 @@ import 'package:provider/provider.dart';
 import 'nav/app_theme.dart';
 import 'nav/home_shell.dart';
 
+import 'package:bookmark/features/reading/application/reading_view_model.dart';
 
 import 'package:bookmark/features/search/data/aladin_api_service.dart';
 import 'package:bookmark/features/search/data/search_repository_impl.dart';
 import 'package:bookmark/features/search/application/search_view_model.dart';
 
-
 import 'package:bookmark/features/library/domain/library_repository.dart';
 import 'package:bookmark/features/library/application/library_view_model.dart';
-import 'package:bookmark/features/library/data/in_memory_library_repository.dart'; // ⬅️ 방금 만든 파일
+import 'package:bookmark/features/library/data/in_memory_library_repository.dart';
 
 void main() => runApp(const AppRoot());
 
@@ -23,7 +23,11 @@ class AppRoot extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<ReadingViewModel>(
+          create: (_) => ReadingViewModel(),
+        ),
 
+        // Library
         Provider<LibraryRepository>(create: (_) => InMemoryLibraryRepository()),
         ChangeNotifierProvider<LibraryViewModel>(
           create: (ctx) => LibraryViewModel(ctx.read<LibraryRepository>()),
