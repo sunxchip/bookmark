@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 
 import 'package:bookmark/features/library/application/library_view_model.dart';
 import 'package:bookmark/pages/widgets/capsule_header.dart';
-import 'widgets/library_empty_view.dart';
-import 'widgets/library_grid.dart';
+import 'package:bookmark/pages/library/widgets/library_empty_view.dart';
+import 'package:bookmark/pages/library/widgets/library_grid.dart';
+
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
