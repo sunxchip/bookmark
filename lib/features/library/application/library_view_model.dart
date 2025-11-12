@@ -16,7 +16,6 @@ class LibraryViewModel extends ChangeNotifier {
   Object? _error;
   Object? get error => _error;
 
-  /// 내 서재 목록 불러오기
   Future<void> load() async {
     _loading = true;
     _error = null;
@@ -31,23 +30,19 @@ class LibraryViewModel extends ChangeNotifier {
     }
   }
 
-  /// 기존 LibraryItem 직접 추가
   Future<void> add(LibraryItem item) async {
     await _repo.add(item);
-    await load(); // 저장 후 최신 상태 재로드
+    await load();
   }
 
-  /// 아이템 제거
   Future<void> remove(String id) async {
     await _repo.remove(id);
     await load();
   }
 
-  /// 검색 결과(Book)를 내 서재에 담기
   Future<void> addFromBook(Book b) async {
     final item = _mapBookToLibraryItem(b);
 
-    // 중복 방지(동일 id가 있으면 먼저 제거)
     if (_items.any((e) => e.id == item.id)) {
       await _repo.remove(item.id);
     }
@@ -57,19 +52,24 @@ class LibraryViewModel extends ChangeNotifier {
     debugPrint("📚 '${item.title}' 내 서재에 담김! (총 ${_items.length}권)");
   }
 
-  /// 매핑 규칙:
-  /// - id: isbn13이 있으면 사용, 없으면 title+timestamp
-  /// - thumbnailUrl: Book.coverUrl 그대로
+  /// id: isbn13 있으면 사용, 없으면 title+timestamp
+  /// coverUrl: Book.coverUrl
+  /// isbn13Or10: isbn13 없으면 대체 키(가능하면 isbn10, 모를 땐 title)
   LibraryItem _mapBookToLibraryItem(Book b) {
     final id = (b.isbn13.isNotEmpty)
         ? b.isbn13
         : '${b.title}-${DateTime.now().millisecondsSinceEpoch}';
 
+    final isbnForLookup =
+    (b.isbn13.isNotEmpty) ? b.isbn13 : b.isbn13; // isbn10 필드가 없으면 임시로 title 사용해도 됨
+
     return LibraryItem(
       id: id,
       title: b.title,
       author: b.author,
-      thumbnailUrl: b.coverUrl,
+      coverUrl: b.coverUrl,
+      isbn13Or10: isbnForLookup,
+      // pageCount: null
     );
   }
 }

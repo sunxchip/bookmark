@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:bookmark/features/search/application/search_view_model.dart';
 import 'package:bookmark/features/search/domain/book.dart';
-import 'add_to_library_sheet.dart';
+import 'package:bookmark/pages/search/widgets/add_to_library_sheet.dart';
 import 'package:bookmark/common/widgets/top_toast.dart';
 
 class SearchResultsList extends StatelessWidget {
@@ -52,8 +52,12 @@ class SearchResultsList extends StatelessWidget {
           final book = vm.results[i];
           return ListTile(
             leading: _cover(book.coverUrl),
-            title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-            subtitle: Text('${book.author} · ${book.pageCount ?? 0}p'),
+            title: Text(
+              book.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(book.author),
             onTap: () => _openAddToLibrarySheet(context, book),
           );
         },

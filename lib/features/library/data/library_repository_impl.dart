@@ -4,7 +4,6 @@ import 'library_local.dart';
 
 class LibraryRepositoryImpl implements LibraryRepository {
   final LibraryLocalDataSource local;
-
   LibraryRepositoryImpl(this.local);
 
   @override
@@ -15,4 +14,8 @@ class LibraryRepositoryImpl implements LibraryRepository {
 
   @override
   Future<void> remove(String id) => local.remove(id);
+
+  @override
+  Future<void> updatePageCount(String id, int pageCount) =>
+      local.updatePageCount(id, pageCount);
 }

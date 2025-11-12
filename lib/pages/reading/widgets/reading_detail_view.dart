@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:bookmark/features/reading/domain/reading_session.dart';
+import 'package:bookmark/features/reading/domain/entities/reading_session.dart';
 import 'package:bookmark/pages/widgets/orange_divider.dart';
 import 'package:bookmark/pages/reading/widgets/reading_timer_card.dart';
 

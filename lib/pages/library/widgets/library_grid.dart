@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:bookmark/features/library/domain/library_item.dart';
 import 'package:bookmark/features/search/domain/book.dart';
 import 'package:bookmark/features/reading/application/reading_view_model.dart';
-import 'package:bookmark/features/reading/domain/reading_session.dart';
+import 'package:bookmark/features/reading/domain/entities/reading_session.dart';
 import 'package:bookmark/nav/tab_nav.dart';
 import 'package:bookmark/pages/reading/widgets/open_reading_sheet.dart';
 
@@ -38,7 +38,7 @@ class _LibraryCard extends StatelessWidget {
       title: item.title,
       author: '', // 있으면 채우기
       isbn13: '', // 있으면 채우기
-      coverUrl: item.thumbnailUrl,
+      coverUrl: item.coverUrl,
       pageCount: null,
     );
 
@@ -78,7 +78,7 @@ class _LibraryCard extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
-                      item.thumbnailUrl,
+                      item.coverUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         color: theme.colorScheme.surfaceVariant,

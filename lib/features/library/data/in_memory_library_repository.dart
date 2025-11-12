@@ -17,4 +17,13 @@ class InMemoryLibraryRepository implements LibraryRepository {
   Future<void> remove(String id) async {
     _items.removeWhere((e) => e.id == id);
   }
+
+
+  @override
+  Future<void> updatePageCount(String id, int itemPage) async {
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx != -1) {
+      _items[idx] = _items[idx].copyWith(itemPage: itemPage);
+    }
+  }
 }

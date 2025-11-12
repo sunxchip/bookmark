@@ -18,7 +18,7 @@ class SearchRepositoryImpl implements SearchRepository {
       start: page,
       maxResults: pageSize,
     );
-    final items = (data['item'] as List? ?? []);
+    final items = (data['item'] as List? ?? []).cast<Map<String, dynamic>>();
     return items.map((e) => BookDto.fromJson(e).toDomain()).toList();
   }
 }

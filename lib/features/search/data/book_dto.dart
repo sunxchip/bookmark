@@ -3,33 +3,43 @@ import 'package:bookmark/features/search/domain/book.dart';
 class BookDto {
   final String title;
   final String author;
-  final String isbn13;
   final String cover;
-  final String? itemPage; // 알라딘은 문자열로
+  final String isbn13;
+  final int? itemPage;
 
   BookDto({
     required this.title,
     required this.author,
-    required this.isbn13,
     required this.cover,
-    this.itemPage,
+    required this.isbn13,
+    required this.itemPage,
   });
 
   factory BookDto.fromJson(Map<String, dynamic> json) {
+    final dynamic rawItemPage =
+        json['itemPage'] ?? (json['subInfo'] != null ? json['subInfo']['itemPage'] : null);
+
+    int? parsedPage;
+    if (rawItemPage is int) {
+      parsedPage = rawItemPage;
+    } else if (rawItemPage is String) {
+      parsedPage = int.tryParse(rawItemPage);
+    }
+
     return BookDto(
-      title: json['title'] ?? '',
-      author: json['author'] ?? '',
-      isbn13: json['isbn13'] ?? '',
-      cover: json['cover'] ?? '',
-      itemPage: json['itemPage']?.toString(),
+      title: (json['title'] ?? '').toString(),
+      author: (json['author'] ?? '').toString(),
+      cover: (json['cover'] ?? '').toString(),
+      isbn13: (json['isbn13'] ?? '').toString(),
+      itemPage: parsedPage,
     );
   }
 
   Book toDomain() => Book(
     title: title,
     author: author,
-    isbn13: isbn13,
     coverUrl: cover,
-    pageCount: itemPage == null ? null : int.tryParse(itemPage!),
+    isbn13: isbn13,
+    pageCount: itemPage,
   );
 }
