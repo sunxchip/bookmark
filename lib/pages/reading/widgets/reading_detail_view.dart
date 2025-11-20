@@ -1,118 +1,121 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:bookmark/features/reading/domain/entities/reading_session.dart';
+import 'package:bookmark/features/reading/application/reading_detail_controller.dart';
+
 import 'package:bookmark/pages/widgets/orange_divider.dart';
 import 'package:bookmark/pages/reading/widgets/reading_timer_card.dart';
+import 'package:bookmark/pages/reading/widgets/parts/progress_header.dart';
+import 'package:bookmark/pages/reading/widgets/parts/book_header.dart';
 
 class ReadingDetailView extends StatelessWidget {
   final ReadingSession session;
   const ReadingDetailView({super.key, required this.session});
 
-  @override
-  Widget build(BuildContext context) {
-    final book = session.book;
-    final progress = session.progress.clamp(0.0, 1.0);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 진행도 바
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: LinearProgressIndicator(value: progress, minHeight: 10),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '읽기 중 ${(progress * 100).toStringAsFixed(0)} %',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-
-          const SizedBox(height: 16),
-
-          // 책 표지 + 제목 + 부가정보
-          Center(
-            child: Column(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    book.coverUrl,
-                    height: 160,
-                    width: 120,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  book.title,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(book.author, textAlign: TextAlign.center),
-                const SizedBox(height: 4),
-                Text(
-                  'ISBN-13 ${book.isbn13}${book.pageCount != null ? ' • ${book.pageCount}p' : ''}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-          const OrangeDivider(),
-          const SizedBox(height: 12),
-
-          // 타이머
-          Text('독서 시간 기록', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          ReadingTimerCard(
-            initialPage: session.lastPage,     // 있으면 입력란 미리 채움
-            totalPages: session.totalPages,    // 진행률 계산용 총 페이지
-            onSaved: (elapsed, page, memo) {
-              // TODO: 실제 저장/세션 업데이트 로직 연결
-              // - 예) progress = (page ?? 0) / (session.totalPages ?? 1)
-              final h = elapsed.inHours;
-              final m = elapsed.inMinutes % 60;
-              final s = elapsed.inSeconds % 60;
-              final pageText = page != null ? ' • P.$page' : '';
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('기록 저장: ${h}h ${m}m ${s}s$pageText'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+  Future<int?> _askTotalPagesDialog(BuildContext context, int? initial) async {
+    final c = TextEditingController(text: (initial == null || initial == 0) ? '' : '$initial');
+    return showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('쪽수 확인이 필요해요'),
+        content: TextField(
+          controller: c,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: '총 페이지 입력'),
+        ),
+        actions: [
+          TextButton(onPressed: ()=>Navigator.pop(context), child: const Text('취소')),
+          FilledButton(
+            onPressed: (){
+              final n = int.tryParse(c.text.trim());
+              Navigator.pop(context, (n != null && n > 0) ? n : null);
             },
-          ),
-          const SizedBox(height: 24),
-
-          // 기록 섹션 (목업)
-          Text('나의 독서 기록', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: const [
-                _Chip('23일 • 32분 • P.210'),
-                _Chip('25일 • 58분 • P.186'),
-                _Chip('23일 • 32분 • P.160'),
-              ],
-            ),
+            child: const Text('확인'),
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => ReadingDetailController()..init(session),
+      builder: (context, _) {
+        final c = context.watch<ReadingDetailController>();
+
+        final textTheme = Theme.of(context).textTheme.apply(fontFamily: 'NotoSans');
+
+        // 진입 시 총페이지 없으면 한 번만 입력 유도
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if ((c.totalPages ?? 0) == 0) {
+            final n = await _askTotalPagesDialog(context, c.totalPages);
+            if (n != null) c.setTotalPages(n);
+          }
+        });
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ProgressHeader(progress: c.progress),
+              const SizedBox(height: 16),
+
+              BookHeader(
+                coverUrl: c.cover,
+                title: c.title,
+                author: c.author,
+                isbn13: c.isbn13,
+                totalPages: c.totalPages,
+                onAskTotalPages: () async {
+                  final n = await _askTotalPagesDialog(context, c.totalPages);
+                  if (n != null) c.setTotalPages(n);
+                  return n;
+                },
+              ),
+
+              const SizedBox(height: 20),
+              const OrangeDivider(),
+              const SizedBox(height: 12),
+
+              Text('독서 시간 기록', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              ReadingTimerCard(
+                initialPage: c.currentPage,
+                totalPages: c.totalPages,
+                onSaved: (elapsed, page, memo) => c.saveLog(elapsed, reachedPage: page, memo: memo),
+              ),
+
+              const SizedBox(height: 24),
+              Text('나의 독서 기록', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: c.logs.isEmpty
+                    ? const Text('아직 기록이 없습니다.')
+                    : Wrap(
+                  spacing: 12, runSpacing: 12,
+                  children: c.logs.map((e) {
+                    final d = '${e.createdAt.month}월 ${e.createdAt.day}일';
+                    final h = e.duration.inHours;
+                    final m = e.duration.inMinutes % 60;
+                    final dur = h > 0 ? '${h}시간 ${m}분' : '${e.duration.inMinutes}분';
+                    return _Chip('$d • $dur • P.${e.reachedPage}');
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -120,7 +123,6 @@ class ReadingDetailView extends StatelessWidget {
 class _Chip extends StatelessWidget {
   final String text;
   const _Chip(this.text);
-
   @override
   Widget build(BuildContext context) {
     return Container(
