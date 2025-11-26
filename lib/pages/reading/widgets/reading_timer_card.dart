@@ -21,8 +21,10 @@ class ReadingTimerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ReadingTimerViewModel(),
+    // 상위(ReadingPage)에서 생성해둔 동일 VM을 재사용
+    final vm = context.read<ReadingTimerViewModel>();
+    return ChangeNotifierProvider<ReadingTimerViewModel>.value(
+      value: vm,
       child: _TimerBody(
         onSaved: onSaved,
         initialPage: initialPage,
@@ -32,7 +34,7 @@ class ReadingTimerCard extends StatelessWidget {
   }
 }
 
-class _TimerBody extends StatelessWidget {
+class _TimerBody extends StatefulWidget {
   const _TimerBody({
     required this.onSaved,
     this.initialPage,
@@ -43,6 +45,13 @@ class _TimerBody extends StatelessWidget {
   final int? initialPage;
   final int? totalPages;
 
+  @override
+  State<_TimerBody> createState() => _TimerBodyState();
+}
+
+class _TimerBodyState extends State<_TimerBody> {
+  bool _opening = false; // 중복 탭/중복 다이얼로그 방지 가드
+
   String _fmt(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes % 60;
@@ -52,37 +61,46 @@ class _TimerBody extends StatelessWidget {
   }
 
   Future<void> _handleTap(BuildContext context) async {
+    if (_opening) return; // 이미 처리 중이면 무시
+    _opening = true;
+
     final vm = context.read<ReadingTimerViewModel>();
+    try {
+      if (!vm.isRunning) {
+        // ▶️ 시작
+        vm.start();
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            content: const Text('오늘의 독서 기록이\n시작되었어요!'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
 
-    if (!vm.isRunning) {
-      // ▶️ 시작 알림
-      vm.start();
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          content: const Text('오늘의 독서 기록이\n시작되었어요!'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('확인'),
-            ),
-          ],
-        ),
+      // ⏸ 중단 → 바텀시트 입력
+      final result = await ReadingLogSheet.show(
+        context,
+        elapsed: vm.elapsed,
+        initialPage: widget.initialPage,
+        totalPages: widget.totalPages,
       );
-      return;
-    }
 
-    // ⏸ 중단: 바텀 시트로 기록 입력 받기
-    final result = await ReadingLogSheet.show(
-      context,
-      elapsed: vm.elapsed,
-      initialPage: initialPage,
-      totalPages: totalPages,
-    );
-
-    if (result != null) {
-      vm.pause();
-      onSaved?.call(vm.elapsed, result.page, result.memo);
+      if (result != null) {
+        // 저장 플로우: 누락분 합산 → 콜백(영속/진행률 반영) → 타이머만 00:00:00
+        vm.pause();
+        widget.onSaved?.call(vm.elapsed, result.page, result.memo);
+        vm.reset(); // 진행률은 DB/VM에서 유지, 타이머만 리셋
+      }
+    } finally {
+      _opening = false;
+      if (mounted) setState(() {});
     }
   }
 

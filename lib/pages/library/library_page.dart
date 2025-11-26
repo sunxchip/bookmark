@@ -6,7 +6,6 @@ import 'package:bookmark/pages/widgets/capsule_header.dart';
 import 'package:bookmark/pages/library/widgets/library_empty_view.dart';
 import 'package:bookmark/pages/library/widgets/library_grid.dart';
 
-
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
 
@@ -43,18 +42,11 @@ class _LibraryPageState extends State<LibraryPage> {
             child: CapsuleHeader(title: '내 서재'),
           ),
           const SizedBox(height: 12),
-
           Expanded(
             child: () {
-              if (vm.loading) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (vm.error != null) {
-                return Center(child: Text('오류: ${vm.error}'));
-              }
-              if (vm.items.isEmpty) {
-                return const LibraryEmptyView();
-              }
+              if (vm.loading) return const Center(child: CircularProgressIndicator());
+              if (vm.error != null) return Center(child: Text('오류: ${vm.error}'));
+              if (vm.items.isEmpty) return const LibraryEmptyView();
               return LibraryGrid(items: vm.items);
             }(),
           ),

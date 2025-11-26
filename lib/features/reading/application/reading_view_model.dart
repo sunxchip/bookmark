@@ -1,76 +1,94 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
+// Library
 import 'package:bookmark/features/library/domain/library_item.dart';
-import 'package:bookmark/features/library/domain/library_item_x.dart'; // .toBook() 확장
+import 'package:bookmark/features/library/domain/library_item_x.dart'; // .toBook()
 import 'package:bookmark/features/library/domain/library_repository.dart';
 import 'package:bookmark/features/library/application/page_count_resolver.dart';
 
+// Reading
 import 'package:bookmark/features/reading/domain/entities/reading_session.dart';
 
+// SQLite (진행률/총페이지 동기화)
+import 'package:bookmark/data/repositories/sqlite_repository.dart';
+
 /// 이어읽기 화면용 ViewModel
-/// - 현재 세션 보유(진행률은 [computedProgress])
-/// - 총 페이지 보장(알라딘 LookUp → repo 저장 → 사용자 입력 폴백)
-/// - 마지막 읽은 페이지 갱신
+/// - 현재 세션 보유/전환
+/// - 총 페이지 확보(알라딘 LookUp → repo 반영 → 폴백 입력)
+/// - DB 변경(changes) 수신하여 진행률/총페이지 동기화
 class ReadingViewModel extends ChangeNotifier {
-  ReadingViewModel(this._repo, this._resolver);
+  ReadingViewModel(
+      this._libRepo,
+      this._resolver, {
+        SqliteRepository? sqlite,
+      }) : _sqlite = sqlite ?? SqliteRepository.I {
+    _sub = _sqlite.changes.listen((_) => _refreshCurrentFromDb());
+  }
 
-  final LibraryRepository _repo;
+  // DI
+  final LibraryRepository _libRepo;
   final PageCountResolver _resolver;
+  final SqliteRepository _sqlite;
 
+  // State
+  StreamSubscription<void>? _sub;
   ReadingSession? _current;
   ReadingSession? get current => _current;
-
-  /// 이어읽기 세션이 없는 상태(빈 화면 노출 여부)
   bool get isEmpty => _current == null;
-
-  /// 현재 진행률 (0.0 ~ 1.0)
   double get progress => _current?.computedProgress ?? 0.0;
 
-  /// 초기 로드: 기본은 비어 있는 상태로 시작
+  // lifecycle
   Future<void> load() async {
     _current = null;
     notifyListeners();
   }
 
-  /// 외부에서 선택된 세션을 직접 열기
   void open(ReadingSession session) {
     _current = session;
     notifyListeners();
+    _refreshCurrentFromDb(); // 열자마자 DB 최신값 한 번 보정
   }
 
-  /// 라이브러리 카드에서 넘어올 때 Book 기반으로 세션 구성하여 오픈
-  /// - [LibraryItem.id]를 isbn13로 간주 (LibraryItem→Book 매핑은 extension 사용)
-  /// - pageCount가 있으면 session.totalPagesOverride로 반영
-  void openFromLibraryItem(LibraryItem item) {
-    final session = ReadingSession.fromBook(item.toBook()).copyWith(
-      totalPagesOverride: item.itemPage,
-    );
-    open(session);
+  /// 서재 카드 → 이어읽기 전환 (DB shelf를 우선 적용)
+  Future<void> openFromLibraryItem(LibraryItem item) async {
+    // item.id == isbn13 (bookId)
+    final shelf = await _sqlite.getShelf(item.id);
+
+    var session = ReadingSession.fromBook(item.toBook());
+
+    final last = shelf?.currentPage;
+    if (last != null && last > 0) {
+      session = session.withLastPage(last);
+    }
+
+    final total = shelf?.totalPages ?? item.itemPage;
+    if (total != null && total > 0) {
+      session = session.withTotalPages(total);
+    }
+
+    open(session);                 // notify 포함
+    await _refreshCurrentFromDb(); // 즉시 동기화(안전)
   }
 
-  /// 기존 시그니처 유지
   Future<void> setCurrent(ReadingSession session) async => open(session);
 
-  /// 이어읽기 상태 비우기 (빈 화면으로 전환)
   Future<void> clear() async {
     _current = null;
     notifyListeners();
   }
 
-  // ------------------------------------------------------------------
-  // 총 페이지 확보 로직 (검색 화면에는 표시하지 않고, 이어읽기/서재에서만 보장)
-  // ------------------------------------------------------------------
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
-  /// 이어읽기 진입 시 총 페이지가 없으면 확보해 두는 편의 메서드
-  /// - LibraryItem 기준으로 LookUp → repo.updatePageCount → session에도 반영
-  /// - 그래도 실패하면 사용자에게 직접 입력받아 repo & session 갱신
-  ///
-  /// 반환: 최신 LibraryItem (pageCount 반영됨)
+  // -------- 총 페이지 확보(보장) --------
   Future<LibraryItem> ensurePageCount(
       BuildContext context,
       LibraryItem item,
       ) async {
-    // 1) 이미 보유하면 즉시 반환 + 세션에만 없으면 세션 반영
     if ((item.itemPage ?? 0) > 0) {
       final total = item.itemPage!;
       if (_current != null && (_current!.totalPages ?? 0) <= 0) {
@@ -80,11 +98,11 @@ class ReadingViewModel extends ChangeNotifier {
       return item;
     }
 
-    // 2) LookUp 시도 (성공 시 내부적으로 repo.updatePageCount 호출)
+    // LookUp 시도(성공 시 repo 내부 갱신)
     await _resolver.resolveAndReplace(item);
 
-    // 최신 LibraryItem 재조회
-    var list = await _repo.getItems();
+    // 최신 리스트 재조회
+    var list = await _libRepo.getItems();
     var updated = list.firstWhere((e) => e.id == item.id, orElse: () => item);
 
     if ((updated.itemPage ?? 0) > 0) {
@@ -95,12 +113,11 @@ class ReadingViewModel extends ChangeNotifier {
       return updated;
     }
 
-    // 3) 사용자 입력 폴백
-    //  (lint: use_build_context_synchronously 경고가 있을 수 있음. 필요하면 위젯층에서 다이얼로그를 띄우고 값만 VM에 넘겨주는 구조로 분리)
+    // 폴백: 직접 입력
     final input = await _askPageCount(context, updated.title);
     if (input != null && input > 0) {
-      await _repo.updatePageCount(updated.id, input);
-      list = await _repo.getItems();
+      await _libRepo.updatePageCount(updated.id, input);
+      list = await _libRepo.getItems();
       updated = list.firstWhere((e) => e.id == item.id, orElse: () => updated);
 
       if (_current != null) {
@@ -111,46 +128,48 @@ class ReadingViewModel extends ChangeNotifier {
     return updated;
   }
 
-  // ------------------------------------------------------------------
-  // 진행 페이지/진행률 갱신
-  // ------------------------------------------------------------------
-
-  /// 현재 세션의 마지막 읽은 페이지 갱신(진행률 자동 재계산)
+  // -------- 진행 페이지/진행률 갱신 --------
   Future<void> updateCurrentPage(int page) async {
     if (_current == null) return;
     _current = _current!.withLastPage(page);
     notifyListeners();
+    await _sqlite.setCurrentPage(_current!.book.isbn13, page); // 내서재 카드와 즉시 동기화
   }
 
-  /// (호환용) 외부에서 LibraryItem 기준 진행률이 필요할 때
-  /// - 현재 열려있는 세션의 책(id=isbn13)과 동일할 때만 session의 진행률 반환
   double progressOf(LibraryItem item) {
     final cur = _current;
     if (cur == null) return 0.0;
-    // LibraryItem.id 를 isbn13로 사용 중 → Book.isbn13과 비교
-    if (cur.book.isbn13 == item.id) {
-      return cur.computedProgress;
-    }
-    return 0.0;
+    return (cur.book.isbn13 == item.id) ? cur.computedProgress : 0.0;
   }
 
-  // ------------------------------------------------------------------
-  // 사용자 입력 다이얼로그 (총 페이지 폴백)
-  // ------------------------------------------------------------------
+  // -------- DB 최신값 반영 --------
+  Future<void> _refreshCurrentFromDb() async {
+    final cur = _current;
+    if (cur == null) return;
 
+    final shelf = await _sqlite.getShelf(cur.book.isbn13);
+    if (shelf == null) return;
+
+    final total = shelf.totalPages ?? cur.totalPages ?? 0;
+
+    _current = cur
+        .withLastPage(shelf.currentPage)
+        .withTotalPages(total);
+
+    notifyListeners();
+  }
+
+  // -------- 총 페이지 폴백 입력 --------
   Future<int?> _askPageCount(BuildContext context, String title) async {
     final controller = TextEditingController();
-    return showDialog<int>(
+    final result = await showDialog<int>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('총 페이지 수 입력'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
-            ),
+            Text(title, style: const TextStyle(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 8),
             TextField(
               controller: controller,
@@ -163,10 +182,7 @@ class ReadingViewModel extends ChangeNotifier {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
           ElevatedButton(
             onPressed: () {
               final v = int.tryParse(controller.text.trim());
@@ -177,5 +193,7 @@ class ReadingViewModel extends ChangeNotifier {
         ],
       ),
     );
+    if (!context.mounted) return result;
+    return result;
   }
 }

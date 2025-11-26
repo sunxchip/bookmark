@@ -7,7 +7,7 @@ class SqliteRepository {
   static final SqliteRepository I = SqliteRepository._();
   SqliteRepository._();
 
-  // 변경 브로드캐스트(내서재/이어읽기 동기화)
+  // 브로드캐스트(내서재/이어읽기 동기화)
   final _changes = StreamController<void>.broadcast();
   Stream<void> get changes => _changes.stream;
 
@@ -63,33 +63,62 @@ class SqliteRepository {
     return rows.map(ShelfItem.fromMap).toList();
   }
 
+  // ⬇⬇⬇ 수정 포인트 1: UPDATE 0건이면 INSERT로 보완(UPSERT) ⬇⬇⬇
   Future<void> setTotalPages(String bookId, int total) async {
     final d = await DatabaseService.I.db;
-    await d.update(
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    final updated = await d.update(
       'shelf_items',
       {
         'totalPages': total,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'updatedAt': now,
       },
       where: 'bookId=?',
       whereArgs: [bookId],
     );
+
+    if (updated == 0) {
+      // shelf 행이 아직 없었던 경우 최초 생성
+      await d.insert('shelf_items', {
+        'bookId': bookId,
+        'currentPage': 0,
+        'totalPages': total,
+        'updatedAt': now,
+      });
+    }
+
+    // books.pageCount 동기
     await d.update('books', {'pageCount': total},
         where: 'id=?', whereArgs: [bookId]);
+
     _changes.add(null);
   }
 
+  //UPDATE 0건이면 INSERT로 보완(UPSERT)
   Future<void> setCurrentPage(String bookId, int page) async {
     final d = await DatabaseService.I.db;
-    await d.update(
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    final updated = await d.update(
       'shelf_items',
       {
         'currentPage': page,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'updatedAt': now,
       },
       where: 'bookId=?',
       whereArgs: [bookId],
     );
+
+    if (updated == 0) {
+      await d.insert('shelf_items', {
+        'bookId': bookId,
+        'currentPage': page,
+        'totalPages': null,
+        'updatedAt': now,
+      });
+    }
+
     _changes.add(null);
   }
 

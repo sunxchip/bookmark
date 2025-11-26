@@ -35,9 +35,14 @@ class ReadingTimerViewModel extends ChangeNotifier {
   }
 
   void reset() {
+    // 실행 중이면 누락분을 먼저 반영한 뒤 끔
+    if (_running && _startedAt != null) {
+      _accum += DateTime.now().difference(_startedAt!);
+    }
     _ticker?.cancel();
-    _accum = Duration.zero;
+    _ticker = null;
     _startedAt = null;
+    _accum = Duration.zero;
     _running = false;
     notifyListeners();
   }
@@ -45,6 +50,7 @@ class ReadingTimerViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _ticker?.cancel();
+    _ticker = null;
     super.dispose();
   }
 }
