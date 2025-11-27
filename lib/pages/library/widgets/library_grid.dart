@@ -43,25 +43,20 @@ class _LibraryCardState extends State<_LibraryCard> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await OpenReadingSheet.show(
+      // 1) 시트에서 사용자 응답(true/false)만 받음
+      final ok = await OpenReadingSheet.show(
         context,
-        book: widget.item.toBook(),
-        onConfirm: () async {
-          final reading = context.read<ReadingViewModel>();
-
-          // 1) 책별 세션 전환(진행/총페이지 DB 반영)
-          await reading.openFromLibraryItem(widget.item);
-
-          // 2) 총 페이지 확보(알라딘 조회/사용자 입력 폴백)
-          await reading.ensurePageCount(context, widget.item);
-
-          // 3) 시트 닫고 → 이어읽기 탭 이동
-          final nav = Navigator.of(context, rootNavigator: true);
-          await nav.maybePop(); // 시트가 열려있다면 닫힘
-          if (!mounted) return;
-          TabNav.I.go(0);
-        },
+        book: widget.item.toBook(), // ← LibraryItem → Book 매퍼(확인)
       );
+      if (!ok) return; // 취소면 아무 것도 안 함
+
+      // 2) 시트가 닫힌 '후'에 세션 전환 & 총페이지 보정
+      final reading = context.read<ReadingViewModel>();
+      await reading.openFromLibraryItem(widget.item);
+      await reading.ensurePageCount(context, widget.item);
+
+      // 3) 이어읽기 탭으로 이동
+      TabNav.I.go(0);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -6,26 +6,24 @@ class OpenReadingSheet extends StatelessWidget {
   const OpenReadingSheet({
     super.key,
     required this.book,
-    required this.onConfirm,
   });
 
   final Book book;
-  final VoidCallback onConfirm;
 
-  static Future<void> show(
+  static Future<bool> show(
       BuildContext context, {
         required Book book,
-        required VoidCallback onConfirm,
-      }) {
-    return showModalBottomSheet(
+      }) async {
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: false,
       backgroundColor: AppTheme.dark.scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => OpenReadingSheet(book: book, onConfirm: onConfirm),
+      builder: (_) => OpenReadingSheet(book: book),
     );
+    return result ?? false;
   }
 
   @override
@@ -39,7 +37,6 @@ class OpenReadingSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // drag handle
             Center(
               child: Container(
                 width: 44, height: 4,
@@ -50,14 +47,11 @@ class OpenReadingSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-
             Align(
               alignment: Alignment.centerLeft,
-              child: Text('이어읽기 ›',
-                  style: theme.textTheme.titleMedium),
+              child: Text('이어읽기 ›', style: theme.textTheme.titleMedium),
             ),
             const SizedBox(height: 12),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -82,7 +76,6 @@ class OpenReadingSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -94,12 +87,11 @@ class OpenReadingSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(22),
                   ),
                 ),
-                onPressed: onConfirm,
+                onPressed: () => Navigator.of(context).pop(true),
                 child: const Text('계속하기'),
               ),
             ),
             const SizedBox(height: 12),
-
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
@@ -110,7 +102,7 @@ class OpenReadingSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(22),
                   ),
                 ),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(context).pop(false),
                 child: Text(
                   '뒤로가기',
                   style: theme.textTheme.titleMedium?.copyWith(

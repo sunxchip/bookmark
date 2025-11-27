@@ -1,3 +1,4 @@
+// lib/data/repositories/sqlite_repository.dart
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
@@ -10,6 +11,7 @@ class SqliteRepository {
   static final SqliteRepository I = SqliteRepository._();
 
   Database? _db;
+  bool get isOpen => _db != null; // ← 유틸
 
   // 내서재/이어읽기 동기화를 위한 변경 스트림
   final _changes = StreamController<void>.broadcast();
@@ -19,9 +21,10 @@ class SqliteRepository {
   Future<void> openForUser(String userId) async {
     final dir = await getDatabasesPath();
     final path = p.join(dir, 'app_$userId.db');
+
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 3, 
       onCreate: (db, _) async {
         await db.execute('''
           CREATE TABLE books(
@@ -45,13 +48,27 @@ class SqliteRepository {
           CREATE TABLE reading_sessions(
             id TEXT PRIMARY KEY,
             bookId TEXT NOT NULL,
-            duration INTEGER NOT NULL,
+            durationSeconds INTEGER NOT NULL, 
             reachedPage INTEGER NOT NULL,
             memo TEXT,
             createdAt INTEGER NOT NULL,
             FOREIGN KEY(bookId) REFERENCES books(id) ON DELETE CASCADE
           );
         ''');
+      },
+      onUpgrade: (db, oldV, newV) async {
+        if (oldV < 2) {
+          await db.execute('ALTER TABLE reading_sessions ADD COLUMN memo TEXT;');
+        }
+        if (oldV < 3) {
+          final info = await db.rawQuery("PRAGMA table_info('reading_sessions');");
+          final hasDuration = info.any((r) => (r['name'] as String) == 'durationSeconds');
+          if (!hasDuration) {
+            await db.execute(
+                'ALTER TABLE reading_sessions ADD COLUMN durationSeconds INTEGER NOT NULL DEFAULT 0;'
+            );
+          }
+        }
       },
     );
   }
@@ -178,7 +195,7 @@ class SqliteRepository {
       createdAt: DateTime.now(),
       memo: memo,
     );
-    await d.insert('reading_sessions', session.toMap());
+    await d.insert('reading_sessions', session.toMap()); // durationSeconds 키로 들어감
 
     await setCurrentPage(bookId, reachedPage); // 진행/업데이트 동기화
     _changes.add(null);
@@ -199,7 +216,7 @@ class SqliteRepository {
       whereArgs: [bookId],
       orderBy: 'createdAt DESC',
     );
-    return rows.map(ReadingSession.fromMap).toList();
+    return rows.map(ReadingSession.fromMap).toList(); // durationSeconds 읽음
   }
 
   /// 내서재 카드용 DTO(책 + 선반 정보)
@@ -222,9 +239,9 @@ class SqliteRepository {
       });
       final s = ShelfItem.fromMap({
         'bookId': m['id'],
-        'currentPage': m['currentPage'] ?? 0,
+        'currentPage': (m['currentPage'] as int?) ?? 0,
         'totalPages': m['totalPages'],
-        'updatedAt': m['updatedAt'] ?? 0,
+        'updatedAt': (m['updatedAt'] as int?) ?? 0,
       });
       return (book: b, shelf: s);
     }).toList();
